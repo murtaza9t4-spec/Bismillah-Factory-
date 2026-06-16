@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Lateef", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* PDF Generation overrides to mimic print styles */
+.pdf-generating .print\:hidden {
+  display: none !important;
+}
+.pdf-generating .print\:w-1\/3 {
+  width: 33.333333% !important;
+}
+.pdf-generating .print\:w-full {
+  width: 100% !important;
+}
+.pdf-generating .print\:p-12 {
+  padding: 3rem !important;
+}
+.pdf-generating .print\:shadow-none {
+  box-shadow: none !important;
+}
+.pdf-generating input::placeholder {
+  color: transparent !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body {
+    background-color: white !important;
+  }
+
+  @page {
+    margin: 0cm; /* eliminate browser margins to let app handle padding */
+    size: A4 portrait;
+  }
+}

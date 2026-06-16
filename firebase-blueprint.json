@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "customer": {
+      "title": "Customer",
+      "description": "A customer of the business.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "mobile": { "type": "string" },
+        "address": { "type": "string" },
+        "cnic": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "name", "mobile", "createdAt"]
+    },
+    "receipt": {
+      "title": "Receipt",
+      "description": "An invoice or receipt.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "receiptNo": { "type": "number" },
+        "date": { "type": "number" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "receivedAmount": { "type": "number" },
+        "remainingBalance": { "type": "number" },
+        "signature": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "receiptNo", "date", "customerName", "items", "total", "createdAt"]
+    }
+  },
+  "firestore": {
+    "customers/{customerId}": {
+      "schema": { "$ref": "#/entities/customer" },
+      "description": "Customers collection"
+    },
+    "receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/receipt" },
+      "description": "Receipts collection"
+    }
+  }
+}

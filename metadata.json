@@ -1,0 +1,6 @@
+{
+  "name": "New Bismillah Ice Factory Receipt Manager",
+  "description": "A digital receipt book for New Bismillah Ice Factory with Urdu interface, customer management, PDF export, and WhatsApp sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

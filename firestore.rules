@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['userId', 'name', 'mobile', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 200
+        && data.mobile is string && data.mobile.size() <= 50;
+    }
+
+    function isValidReceipt(data) {
+      return data.keys().hasAll(['userId', 'receiptNo', 'date', 'customerName', 'items', 'total', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.receiptNo is number
+        && data.date is number
+        && data.customerName is string && data.customerName.size() <= 200
+        && data.items is list && data.items.size() <= 100
+        && data.total is number;
+    }
+
+    match /customers/{customerId} {
+      allow read, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(customerId) && isValidCustomer(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(customerId) && existing().userId == request.auth.uid && isValidCustomer(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /receipts/{receiptId} {
+      allow read, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(receiptId) && isValidReceipt(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(receiptId) && existing().userId == request.auth.uid && isValidReceipt(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}
