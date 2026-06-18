@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CreateReceipt } from './components/CreateReceipt';
 import { HistoryList } from './components/HistoryList';
+import { InstallPWA } from './components/InstallPWA';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
@@ -17,7 +18,10 @@ export default function App() {
       <nav className="bg-white border-b border-gray-200 z-50 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h2 className="font-bold text-xl text-gray-900 tracking-tight">نیو بسم اللہ آئس فیکٹری - رسید</h2>
+            <div className="flex items-center">
+              <h2 className="font-bold text-xl text-gray-900 tracking-tight ml-2">نیو بسم اللہ آئس فیکٹری - رسید</h2>
+              <InstallPWA />
+            </div>
             <div className="flex gap-4">
               <button 
                 onClick={() => {

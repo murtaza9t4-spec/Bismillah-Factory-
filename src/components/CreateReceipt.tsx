@@ -1,6 +1,7 @@
-import { Printer, Download, Image as ImageIcon, Save } from 'lucide-react';
+import { Printer, Download, Image as ImageIcon, Save, FileText, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { domToPng } from 'modern-screenshot';
+import jsPDF from 'jspdf';
 import { ReceiptData } from '../types';
 
 interface Props {
@@ -9,10 +10,12 @@ interface Props {
 }
 
 export function CreateReceipt({ editReceiptId, onSaved }: Props) {
+  const [isGenerateMenuOpen, setIsGenerateMenuOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [receiptNo, setReceiptNo] = useState('');
   const [date, setDate] = useState(new Date().toLocaleDateString('ur-PK') || new Date().toISOString().split('T')[0]);
   const [customerName, setCustomerName] = useState('');
-  const [items, setItems] = useState(Array.from({ length: 3 }, () => ({ date: '', qty: '', rate: '', amount: '' })));
+  const [items, setItems] = useState(Array.from({ length: 10 }, () => ({ date: '', qty: '', rate: '', amount: '' })));
   
   const [previousBalance, setPreviousBalance] = useState('');
   const [received, setReceived] = useState('');
@@ -85,37 +88,81 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
     if (onSaved) onSaved();
   };
 
-  const downloadImage = async () => {
-    if (!receiptRef.current) return;
-    
+  const generateAndSave = async (type: 'pdf' | 'image' | 'print') => {
+    setIsGenerating(true);
+    // Wait for React to re-render without the empty rows
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    if (!receiptRef.current) {
+      setIsGenerating(false);
+      return;
+    }
+
     try {
-      // Temporarily add a class to hide "system only" columns during image generation
-      receiptRef.current.classList.add('pdf-generating');
-      
-      const imgData = await domToPng(receiptRef.current, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        onCloneNode: (clonedNode) => {
-          if ('tagName' in clonedNode && clonedNode.tagName === 'INPUT') {
-            const el = clonedNode as HTMLInputElement;
-            // Retain values in clones
-            el.setAttribute('value', el.value);
-            el.defaultValue = el.value;
+      await document.fonts.ready;
+      if (type === 'pdf') {
+        const imgData = await domToPng(receiptRef.current, {
+          scale: 4,
+          backgroundColor: '#fffcf0',
+          font: {
+             cssText: `@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');`
+          },
+          onCloneNode: (clonedNode) => {
+            if ('tagName' in clonedNode && clonedNode.tagName === 'INPUT') {
+              const el = clonedNode as HTMLInputElement;
+              el.setAttribute('value', el.value);
+              el.defaultValue = el.value;
+            }
           }
-        }
-      });
-      
-      receiptRef.current.classList.remove('pdf-generating');
-      
-      const a = document.createElement('a');
-      a.href = imgData;
-      a.download = `receipt-${receiptNo || 'new'}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+        });
+        
+        const tempPdf = new jsPDF();
+        const imgProps = tempPdf.getImageProperties(imgData);
+        
+        const pdfWidth = 210;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: [pdfWidth, pdfHeight]
+        });
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`receipt-${receiptNo || 'new'}.pdf`);
+      } else if (type === 'image') {
+        const imgData = await domToPng(receiptRef.current, {
+          scale: 2,
+          backgroundColor: '#fffcf0',
+          font: {
+             cssText: `@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');`
+          },
+          onCloneNode: (clonedNode) => {
+            if ('tagName' in clonedNode && clonedNode.tagName === 'INPUT') {
+              const el = clonedNode as HTMLInputElement;
+              el.setAttribute('value', el.value);
+              el.defaultValue = el.value;
+            }
+          }
+        });
+        
+        const a = document.createElement('a');
+        a.href = imgData;
+        a.download = `receipt-${receiptNo || 'new'}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else if (type === 'print') {
+        window.print();
+        // Wait a bit for print dialog
+        await new Promise(r => setTimeout(r, 500));
+      }
     } catch (error) {
-      console.error('Error generating Image:', error);
-      alert('Image download failed. Please try again.');
+      console.error(`Error generating ${type}:`, error);
+      alert(`${type.toUpperCase()} generation failed. Please try again.`);
+    } finally {
+      setIsGenerating(false);
+      saveReceipt();
     }
   };
 
@@ -164,7 +211,7 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
       }
       setReceiptNo(nextNoStr);
       setCustomerName('');
-      setItems(Array.from({ length: 3 }, () => ({ date: '', qty: '', rate: '', amount: '' })));
+      setItems(Array.from({ length: 10 }, () => ({ date: '', qty: '', rate: '', amount: '' })));
       setPreviousBalance('');
       setReceived('');
     }
@@ -179,28 +226,63 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
         <button onClick={clearForm} className="text-red-600 hover:bg-red-50 py-3 sm:py-2 px-4 rounded-xl font-medium transition-colors w-full sm:w-auto text-center border border-red-200 sm:border-transparent">
           صاف کریں (Clear)
         </button>
-        <div className="flex flex-col sm:flex-row h-full sm:h-auto gap-3 w-full sm:w-auto">
-          <button onClick={saveReceipt} className="bg-amber-500 hover:bg-amber-600 text-white py-3 px-5 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors print:hidden w-full sm:w-auto text-left" dir="ltr">
-            <Save className="w-5 h-5" />
-            Save History
-          </button>
-          <button onClick={() => {
-            setTimeout(() => window.print(), 100);
-          }} className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-5 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors print:hidden w-full sm:w-auto" title="Browser Print">
-            <Printer className="w-5 h-5" />
-            Print
-          </button>
-          <button onClick={downloadImage} className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors print:hidden text-left w-full sm:w-auto" dir="ltr">
-            <ImageIcon className="w-5 h-5" />
-            Download Image
-          </button>
+        <div className="flex flex-col sm:flex-row h-full sm:h-auto gap-3 w-full sm:w-auto relative">
+          <div className="relative w-full sm:w-auto text-left" dir="ltr">
+            <button 
+              onClick={() => setIsGenerateMenuOpen(!isGenerateMenuOpen)} 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors print:hidden w-full sm:w-auto"
+            >
+              <Download className="w-5 h-5" />
+              Generate
+              <ChevronDown className={`w-4 h-4 transition-transform ${isGenerateMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isGenerateMenuOpen && (
+              <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
+                <button 
+                  onClick={() => {
+                    setIsGenerateMenuOpen(false);
+                    generateAndSave('pdf');
+                  }} 
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-gray-700 disabled:opacity-50"
+                  disabled={isGenerating}
+                >
+                  <FileText className="w-5 h-5 text-sky-600" />
+                  <span className="font-medium">PDF Document</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsGenerateMenuOpen(false);
+                    generateAndSave('image');
+                  }} 
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-gray-700 disabled:opacity-50"
+                  disabled={isGenerating}
+                >
+                  <ImageIcon className="w-5 h-5 text-indigo-600" />
+                  <span className="font-medium">Image (PNG)</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsGenerateMenuOpen(false);
+                    generateAndSave('print');
+                  }} 
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-gray-700 disabled:opacity-50"
+                  disabled={isGenerating}
+                >
+                  <Printer className="w-5 h-5 text-emerald-600" />
+                  <span className="font-medium">Print Receipt</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      
       {/* Preview Column (The Bill Book format) */}
       <div className="w-full shrink-0 flex justify-center print:block print:w-full mx-auto" ref={receiptRef}>
          <div 
-          className="bg-amber-50 border border-gray-200 p-3 sm:p-10 pb-6 sm:pb-10 w-full max-w-[800px] text-emerald-950 print:p-12 print:pb-12 print:shadow-none mx-auto shadow-lg relative overflow-hidden"
+          className="bg-[#fffcf0] border border-gray-200 p-3 sm:p-10 pb-6 sm:pb-10 w-full max-w-[800px] text-emerald-950 print:p-12 print:pb-12 print:bg-white print:border-none print:shadow-none mx-auto shadow-lg shadow-gray-200/50 relative overflow-hidden font-sans"
           dir="rtl"
          >
             {/* Pad Binding (Visual only) */}
@@ -238,16 +320,20 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
             {/* Table */}
             <table className="w-full mb-6 border-collapse border-2 border-emerald-800 text-sm sm:text-base">
               <thead>
-                <tr className="bg-emerald-100/50 border-b-2 border-emerald-800 text-emerald-900">
+                <tr className="bg-emerald-50/80 border-b-2 border-emerald-800 text-emerald-900">
                   <th className="border-l border-emerald-800 p-2 sm:p-3 text-center w-1/3 sm:w-1/4 print:w-1/3 whitespace-nowrap">تاريخ</th>
-                  <th className="border-l border-emerald-800 p-2 sm:p-3 text-center w-1/3 sm:w-1/4 print:w-1/3 whitespace-nowrap">تعداد</th>
-                  <th className="border-l border-emerald-800 p-2 sm:p-3 text-center hidden sm:table-cell w-1/4 print:hidden bg-emerald-200/50 text-xs sm:text-sm" title="Only visible to you">ريٽ (صرف سسٽم)</th>
+                  <th className="border-l border-emerald-800 p-2 sm:p-3 text-center w-1/3 sm:w-1/4 print:w-1/3 whitespace-nowrap">تعداد گولا</th>
+                  <th className="border-l border-emerald-800 p-2 sm:p-3 text-center hidden sm:table-cell w-1/4 print:hidden bg-emerald-100/50 text-xs sm:text-sm" title="Only visible to you">ريٽ (صرف سسٽم)</th>
                   <th className="p-2 sm:p-3 text-center w-1/3 sm:w-1/4 print:w-1/3">رقم</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, i) => (
-                  <tr key={i} className="border-b border-emerald-800/60 h-8 sm:h-10 hover:bg-emerald-50 transition-colors">
+                {items.map((item, i) => {
+                  const isEmptyRow = !item.date && !item.qty && !item.rate && !item.amount;
+                  if (isGenerating && isEmptyRow) return null;
+                  
+                  return (
+                  <tr key={i} className={`border-b border-emerald-800/60 h-8 sm:h-10 hover:bg-emerald-50 transition-colors ${isEmptyRow ? 'empty-row' : ''}`}>
                     <td className="border-l border-emerald-800/60 p-0">
                       <input 
                         type="text" 
@@ -286,7 +372,7 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
                       />
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
 
@@ -294,30 +380,32 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
             <div className="flex justify-end mb-8 sm:mb-12">
               <table className="w-full sm:w-64 border-collapse border-2 border-emerald-800 text-sm sm:text-base" dir="rtl">
                  <tbody>
+                    {(!isGenerating || previousBalance) && (
+                      <tr className={`border-b border-emerald-800 h-10 ${!previousBalance ? 'print:hidden' : ''}`}>
+                        <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-50/80 text-emerald-900 text-right w-1/2">اڳ جي بقايہ</td>
+                        <td className="p-0">
+                          <input 
+                            type="text" 
+                            value={previousBalance} 
+                            onChange={e => setPreviousBalance(e.target.value)}
+                            className={`${inputClass} w-full h-10 text-center font-mono bg-transparent hover:bg-emerald-50 text-indigo-900`}
+                            dir="ltr"
+                          />
+                        </td>
+                      </tr>
+                    )}
                     <tr className="border-b border-emerald-800 h-10">
-                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-100/50 text-emerald-900 text-right w-1/2">اڳ جي بقايہ</td>
-                      <td className="p-0">
-                        <input 
-                          type="text" 
-                          value={previousBalance} 
-                          onChange={e => setPreviousBalance(e.target.value)}
-                          className={`${inputClass} w-full h-10 text-center font-mono bg-transparent hover:bg-emerald-50 text-indigo-900`}
-                          dir="ltr"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-emerald-800 h-10">
-                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-100/50 text-emerald-900 text-right">ٽوٽل بقايہ</td>
-                      <td className="p-2 text-center font-mono font-bold text-indigo-900" dir="ltr">
+                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-50/80 text-emerald-900 text-right">ٽوٽل بقايہ</td>
+                      <td className="p-2 text-center font-mono font-bold text-indigo-900 bg-white/40" dir="ltr">
                         {(totalAmount + (parseFloat(previousBalance) || 0)) || ''}
                       </td>
                     </tr>
                     <tr className="border-b border-emerald-800 h-10">
-                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-100/50 text-emerald-900 text-right">مليل رقم</td>
-                      <td className="p-0">
+                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-50/80 text-emerald-900 text-right">مليل رقم</td>
+                      <td className="p-0 bg-white/20">
                         <input 
                           type="text" 
-                          value={received} 
+                          value={isGenerating && !received ? '-----' : received} 
                           onChange={e => setReceived(e.target.value)}
                           className={`${inputClass} w-full h-10 text-center font-mono hover:bg-emerald-50 text-indigo-900`}
                           dir="ltr"
@@ -325,8 +413,8 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
                       </td>
                     </tr>
                     <tr className="h-10">
-                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-100/50 text-emerald-900 text-right">بقايہ رقم</td>
-                      <td className="p-2 text-center font-mono font-bold text-red-700" dir="ltr">
+                      <td className="border-l border-emerald-800 p-2 font-bold bg-emerald-50/80 text-emerald-900 text-right">بقايہ رقم</td>
+                      <td className="p-2 text-center font-mono font-bold text-red-700 bg-white/40" dir="ltr">
                         {totalBalance || ''}
                       </td>
                     </tr>
