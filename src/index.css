@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gulzar&family=Lateef:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Lateef", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Lateef", "Noto Sans Arabic", "Noto Naskh Arabic", "MB Sindhi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
 }
 
 /* PDF Generation overrides to mimic print styles */

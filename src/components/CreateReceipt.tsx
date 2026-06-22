@@ -19,6 +19,8 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
   
   const [previousBalance, setPreviousBalance] = useState('');
   const [received, setReceived] = useState('');
+  const [signatureName, setSignatureName] = useState<'Murtaza' | 'Qurban Ali'>('Murtaza');
+  const [isSignatureMenuOpen, setIsSignatureMenuOpen] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +38,7 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
             setItems(target.items);
             setPreviousBalance(target.previousBalance);
             setReceived(target.received);
+            if (target.signatureName) setSignatureName(target.signatureName as 'Murtaza' | 'Qurban Ali');
             return;
           }
         } catch (e) {
@@ -75,7 +78,8 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
       customerName,
       items,
       previousBalance,
-      received
+      received,
+      signatureName
     };
     
     if (editReceiptId) {
@@ -93,7 +97,8 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
     // Wait for React to re-render without the empty rows
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    if (!receiptRef.current) {
+    const targetElement = (receiptRef.current?.firstElementChild as HTMLElement) || receiptRef.current;
+    if (!targetElement && type !== 'print') {
       setIsGenerating(false);
       return;
     }
@@ -101,49 +106,34 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
     try {
       await document.fonts.ready;
       if (type === 'pdf') {
-        const imgData = await domToPng(receiptRef.current, {
-          scale: 4,
+        const fontLink = `@import url('https://fonts.googleapis.com/css2?family=Gulzar&family=Lateef:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Space+Grotesk:wght@500;600;700&display=swap');`;
+        const imgData = await domToPng(targetElement, {
+          scale: 3,
           backgroundColor: '#fffcf0',
-          font: {
-             cssText: `@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');`
-          },
-          onCloneNode: (clonedNode) => {
-            if ('tagName' in clonedNode && clonedNode.tagName === 'INPUT') {
-              const el = clonedNode as HTMLInputElement;
-              el.setAttribute('value', el.value);
-              el.defaultValue = el.value;
-            }
-          }
+          font: { cssText: fontLink }
         });
         
         const tempPdf = new jsPDF();
         const imgProps = tempPdf.getImageProperties(imgData);
         
-        const pdfWidth = 210;
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
+        const orientation = imgProps.width > imgProps.height ? 'landscape' : 'portrait';
         const pdf = new jsPDF({
-          orientation: 'portrait',
+          orientation: orientation,
           unit: 'mm',
-          format: [pdfWidth, pdfHeight]
+          format: 'a4'
         });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`receipt-${receiptNo || 'new'}.pdf`);
       } else if (type === 'image') {
-        const imgData = await domToPng(receiptRef.current, {
-          scale: 2,
+        const fontLink = `@import url('https://fonts.googleapis.com/css2?family=Gulzar&family=Lateef:wght@200;300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Space+Grotesk:wght@500;600;700&display=swap');`;
+        const imgData = await domToPng(targetElement, {
+          scale: 3,
           backgroundColor: '#fffcf0',
-          font: {
-             cssText: `@import url('https://fonts.googleapis.com/css2?family=Lateef:wght@400;500;600;700;800&family=Great+Vibes&display=swap');`
-          },
-          onCloneNode: (clonedNode) => {
-            if ('tagName' in clonedNode && clonedNode.tagName === 'INPUT') {
-              const el = clonedNode as HTMLInputElement;
-              el.setAttribute('value', el.value);
-              el.defaultValue = el.value;
-            }
-          }
+          font: { cssText: fontLink }
         });
         
         const a = document.createElement('a');
@@ -282,38 +272,39 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
       {/* Preview Column (The Bill Book format) */}
       <div className="w-full shrink-0 flex justify-center print:block print:w-full mx-auto" ref={receiptRef}>
          <div 
-          className="bg-[#fffcf0] border border-gray-200 p-3 sm:p-10 pb-6 sm:pb-10 w-full max-w-[800px] text-emerald-950 print:p-12 print:pb-12 print:bg-white print:border-none print:shadow-none mx-auto shadow-lg shadow-gray-200/50 relative overflow-hidden font-sans"
+          className="bg-[#fffcf0] border border-gray-200 p-3 sm:p-10 pb-6 sm:pb-10 w-full max-w-[800px] text-emerald-950 print:p-12 print:pb-12 print:bg-white print:border-none print:shadow-none mx-auto shadow-lg shadow-gray-200/50 relative overflow-hidden"
           dir="rtl"
+          style={{ fontFamily: "'Lateef', 'Noto Sans Arabic', 'MB Sindhi', serif" }}
          >
             {/* Pad Binding (Visual only) */}
             <div className="absolute top-0 left-0 right-0 h-4 bg-red-700 border-b border-red-800 shadow-sm"></div>
 
             {/* Header */}
-            <div className="text-center border-b-2 border-emerald-800 pb-3 sm:pb-4 mb-4 sm:mb-6 mt-2">
+            <div className="text-center pb-2 mb-4 mt-2">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 tracking-tight text-emerald-800 whitespace-nowrap" style={{ fontWeight: 800 }}>بسم اللّه آئيس فيڪٽري</h1>
               <p className="text-lg sm:text-xl font-medium text-emerald-900">رستم ضلع شڪارپور</p>
               <p className="text-base sm:text-lg mt-1 font-bold text-emerald-700" dir="ltr">📞 0302-3934191</p>
             </div>
 
             {/* Meta */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-4 sm:mb-6 text-sm sm:text-base font-bold text-emerald-900">
-              <div className="flex items-center justify-start gap-2">
-                <span className="whitespace-nowrap">رسيد نمبر:</span>
-                <input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} className={`${inputClass} border-b border-emerald-800/50 min-w-[80px] w-24 text-center text-red-600`} />
+            <div className="flex justify-between items-end mb-4 sm:mb-6 border-b-2 border-emerald-800 pb-2 gap-4">
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap font-bold text-base sm:text-lg text-emerald-900">تاريخ:</span>
+                <input type="text" value={date} onChange={e => setDate(e.target.value)} className={`${inputClass} w-24 sm:w-32 text-indigo-700 font-mono font-bold text-base sm:text-lg text-right tracking-widest`} dir="ltr" />
               </div>
-              <div className="flex items-center justify-start gap-2">
-                <span className="whitespace-nowrap">تاريخ:</span>
-                <input type="text" value={date} onChange={e => setDate(e.target.value)} className={`${inputClass} border-b border-emerald-800/50 min-w-[100px] w-32 text-center text-indigo-700`} dir="ltr" />
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap font-bold text-base sm:text-lg text-emerald-900">رسيد نمبر:</span>
+                <input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} className={`${inputClass} w-20 sm:w-28 text-red-600 font-mono font-bold text-base sm:text-lg text-right tracking-widest`} dir="ltr" />
               </div>
             </div>
-
-            <div className="flex items-center mb-6 sm:mb-8 text-lg sm:text-xl text-emerald-900">
-              <span className="font-bold whitespace-nowrap ml-2 sm:ml-3">نالو:</span> 
+            
+            <div className="flex items-end mb-6 sm:mb-8 border-b-2 border-emerald-800 pb-2">
+              <span className="whitespace-nowrap font-bold text-lg sm:text-xl text-emerald-900 ml-2">نــالو:</span> 
               <input 
                 type="text" 
                 value={customerName} 
                 onChange={e => setCustomerName(e.target.value)}
-                className={`${inputClass} flex-1 border-b-2 border-emerald-800 pb-1 px-1 sm:px-2 font-medium min-h-[30px] w-full text-indigo-900`} 
+                className={`${inputClass} flex-1 text-indigo-900 font-bold text-lg sm:text-xl px-2 min-h-[36px] bg-transparent outline-none`} 
               />
             </div>
 
@@ -330,6 +321,10 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
               <tbody>
                 {items.map((item, i) => {
                   const isEmptyRow = !item.date && !item.qty && !item.rate && !item.amount;
+                  if (isEmptyRow && i >= 1 && items.slice(0, i).some(prev => !prev.date && !prev.qty && !prev.rate && !prev.amount)) {
+                     // Hide extra empty rows: only show one empty row below filled ones
+                     return null;
+                  }
                   if (isGenerating && isEmptyRow) return null;
                   
                   return (
@@ -425,12 +420,36 @@ export function CreateReceipt({ editReceiptId, onSaved }: Props) {
             {/* Signature */}
             <div className="flex justify-start mt-12 pt-8">
                <div className="relative border-t-2 border-emerald-800 w-48 text-center pt-2 font-bold text-lg text-emerald-900 mt-6">
-                <div 
-                  className="absolute bottom-full left-0 w-full text-center" 
-                  style={{ fontFamily: "'Great Vibes', cursive", fontSize: '2.5rem', color: '#047857', fontWeight: 'normal', lineHeight: '1' }}
-                  dir="ltr"
-                >
-                  Murtaza
+                <div className="absolute bottom-full left-0 w-full text-center">
+                  <div className="relative inline-block">
+                    <button 
+                      onClick={() => !isGenerating && setIsSignatureMenuOpen(!isSignatureMenuOpen)}
+                      className={`cursor-pointer transition-colors ${!isGenerating ? 'hover:text-emerald-600' : ''}`}
+                      style={{ fontFamily: "'Great Vibes', cursive", fontSize: '2.5rem', color: '#047857', fontWeight: 'normal', lineHeight: '1' }}
+                      dir="ltr"
+                      disabled={isGenerating}
+                    >
+                      {signatureName}
+                    </button>
+                    {!isGenerating && isSignatureMenuOpen && (
+                      <div className="absolute -top-2 left-full ml-4 bg-white border border-emerald-200 shadow-xl rounded-lg overflow-hidden z-10 min-w-32 animate-in fade-in zoom-in duration-200">
+                        <button 
+                          onClick={() => { setSignatureName('Qurban Ali'); setIsSignatureMenuOpen(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-emerald-50 text-emerald-900 font-bold font-sans text-sm border-b border-emerald-100 transition-colors"
+                          dir="ltr"
+                        >
+                          1. Qurban Ali
+                        </button>
+                        <button 
+                          onClick={() => { setSignatureName('Murtaza'); setIsSignatureMenuOpen(false); }}
+                          className="w-full text-left px-4 py-3 hover:bg-emerald-50 text-emerald-900 font-bold font-sans text-sm transition-colors"
+                          dir="ltr"
+                        >
+                          2. Murtaza
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 دستخط
               </div>

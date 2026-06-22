@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { CreateReceipt } from './components/CreateReceipt';
 import { HistoryList } from './components/HistoryList';
 import { InstallPWA } from './components/InstallPWA';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { ReloadPrompt } from './components/ReloadPrompt';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'history'>('create');
@@ -14,6 +16,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans" dir="rtl">
+      <OfflineIndicator />
+      <ReloadPrompt />
       {/* Top Navigation Bar */}
       <nav className="bg-white border-b border-gray-200 z-50 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

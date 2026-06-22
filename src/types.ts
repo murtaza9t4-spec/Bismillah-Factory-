@@ -14,4 +14,5 @@ export interface ReceiptData {
   items: ReceiptItem[];
   previousBalance: string;
   received: string;
+  signatureName?: 'Murtaza' | 'Qurban Ali';
 }
